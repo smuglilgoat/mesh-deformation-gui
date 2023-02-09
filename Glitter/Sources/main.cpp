@@ -2,12 +2,15 @@
 #include "Vendors.h"
 #include "Mesh.h"
 #include "Camera.h"
+#include "imgui_stdlib.h"
 
+#include <ImGuiFileDialog.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+
 
 glm::vec2 last_mouse_pos = glm::vec2(0, 0);
 bool dragging = false;
@@ -56,7 +59,8 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 
 int main() {
 
-    const std::string m_title = "";
+    const std::string m_title = "Coord Bary Gen";
+    std::string file{"data/models/suzzy.fbx"};
 
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -86,7 +90,7 @@ int main() {
     ImGui_ImplGlfw_InitForOpenGL(m_window, true);
     ImGui_ImplOpenGL3_Init("#version 150");
 
-    Mesh test_cube("data/models/cube.fbx");
+    Mesh test_cube(file);
     Shader test_shader("data/shaders/base.vert", "data/shaders/base.frag");
 
     camera.m_aspect_ratio = (float)m_width / (float)m_height ;
@@ -99,9 +103,27 @@ int main() {
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-
         ImGui::Begin("Menu");
-        ImGui::Text("");
+        ImGui::Text("Currently Opened Model:");
+
+        // open Dialog Simple
+        if (ImGui::Button("Open Model"))
+            ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".fbx", ".");
+
+        // display
+        if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey"))
+        {
+            // action if OK
+            if (ImGuiFileDialog::Instance()->IsOk())
+            {
+                std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
+                file = filePathName;
+            }
+
+            // close
+            ImGuiFileDialog::Instance()->Close();
+        }
+        Mesh test_cube(file);
         ImGui::End();
 
         ImGui::Render();
