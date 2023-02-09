@@ -36,15 +36,20 @@ static void cursor_position_callback(GLFWwindow* window, double pos_x, double po
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
-    if (button == GLFW_MOUSE_BUTTON_LEFT ) {
-        if (action == GLFW_PRESS) {
-            double x, y;
-            glfwGetCursorPos(window, &x, &y);
-            last_mouse_pos = glm::vec2(x, y);
-            dragging = true;
-        }
-        else if (action == GLFW_RELEASE) {
-            dragging = false;
+    ImGuiIO& io = ImGui::GetIO();
+    // (2) ONLY forward mouse data to your underlying app/game.
+    if (!io.WantCaptureMouse)
+    {
+        if (button == GLFW_MOUSE_BUTTON_LEFT) {
+            if (action == GLFW_PRESS) {
+                double x, y;
+                glfwGetCursorPos(window, &x, &y);
+                last_mouse_pos = glm::vec2(x, y);
+                dragging = true;
+            }
+            else if (action == GLFW_RELEASE) {
+                dragging = false;
+            }
         }
     }
 }
