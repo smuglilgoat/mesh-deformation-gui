@@ -6,6 +6,21 @@ option(GLFW_BUILD_EXAMPLES OFF)
 option(GLFW_BUILD_TESTS OFF)
 add_subdirectory(Glitter/Vendor/glfw)
 
+set(CGAL_DIR "C://local//cgal//")
+set(GMP_INCLUDE_DIR "C://local//cgal//auxiliary//gmp//include")
+set(GMP_LIBRARIES "C://local//cgal//auxiliary//gmp//lib//libgmp-10.lib")
+set(MPFR_INCLUDE_DIR "C://local//cgal//auxiliary//gmp//include")
+set(MPFR_LIBRARIES "C://local//cgal//auxiliary//gmp//lib//libmpfr-4.lib")
+
+find_package(CGAL QUIET COMPONENTS Core)
+if(CGAL_FOUND)
+  include(${CGAL_USE_FILE})
+  include(CGAL_CreateSingleSourceCGALProgram)
+else()
+  message(WARNING "This program requires the CGAL library, and will not be compiled.")
+endif()
+
+
 option(ASSIMP_BUILD_ASSIMP_TOOLS OFF)
 option(ASSIMP_BUILD_SAMPLES OFF)
 option(ASSIMP_BUILD_TESTS OFF)
@@ -60,6 +75,6 @@ add_executable(${PROJECT_NAME} ${PROJECT_SOURCES} ${PROJECT_HEADERS}
                                ${PROJECT_CONFIGS}
                                ${VENDORS_SOURCES})
 target_link_libraries(${PROJECT_NAME} assimp glfw
-                      ${GLFW_LIBRARIES} ${GLAD_LIBRARIES})
+                      ${GLFW_LIBRARIES} ${GLAD_LIBRARIES} ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES})
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME})
