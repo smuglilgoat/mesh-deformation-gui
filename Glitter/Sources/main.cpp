@@ -34,7 +34,7 @@ using Point_3 = Kernel::Point_3;
 using FT = Kernel::FT;
 
 typedef FT(*Function)(Point_3);
-using  Surface_3 = CGAL::Implicit_surface_3<Kernel, Function>;
+using Surface_3 = CGAL::Implicit_surface_3<Kernel, Function>;
 using Surface_mesh = CGAL::Surface_mesh<Point_3>;
 namespace PMP = CGAL::Polygon_mesh_processing;
 
@@ -90,10 +90,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
     }
 }
 
-int main() {
-
-
-
+void deformIt() {
     ////////////// CGAL TEST ///////////////
     Tr tr;
     C2t3 c2t3(tr);
@@ -154,7 +151,16 @@ int main() {
     }
 
     std::cout << "cgal works" << std::endl;
+    std::ofstream out_original("sphere.off");
+    out_original << sm << std::endl;
+
+    std::ofstream out_deformed("deformed_sphere.off");
+    out_deformed << deformed << std::endl;
     ////////////// CGAL TEST ///////////////
+}
+
+int main() {
+    deformIt();
 
     const std::string m_title = "Coord Bary Gen";
     std::string file{"data/models/cube.obj"};
@@ -197,6 +203,21 @@ int main() {
             glfwSetWindowShouldClose(m_window, true);
         }
 
+        if (glfwGetKey(m_window, GLFW_KEY_P) == GLFW_PRESS) {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+            glfwPollEvents();
+        }
+
+        if (glfwGetKey(m_window, GLFW_KEY_L) == GLFW_PRESS) {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            glfwPollEvents();
+        }
+
+        if (glfwGetKey(m_window, GLFW_KEY_F) == GLFW_PRESS) {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            glfwPollEvents();
+        }
+
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
@@ -206,7 +227,7 @@ int main() {
 
         // open Dialog Simple
         if (ImGui::Button("Open Model"))
-            ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".fbx", ".");
+            ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".obj,.off,.fbx", ".");
 
         // display
         if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey"))
