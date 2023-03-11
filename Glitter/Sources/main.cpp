@@ -11,38 +11,30 @@
 #include <cstdlib>
 #include <iostream>
 
-////////////// CGAL TEST ///////////////
-#include <CGAL/Surface_mesh_default_triangulation_3.h>
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/Complex_2_in_triangulation_3.h>
-#include <CGAL/make_surface_mesh.h>
-#include <CGAL/Implicit_surface_3.h>
-#include <CGAL/IO/facets_in_complex_2_to_triangle_mesh.h>
-#include <CGAL/Surface_mesh.h>
-#include <CGAL/Polygon_mesh_processing/triangulate_faces.h>
-#include <CGAL/Barycentric_coordinates_3/Wachspress_coordinates_3.h>
+////////////// CGAL ///////////////
 #include <CGAL/Barycentric_coordinates_3/Mean_value_coordinates_3.h>
+#include <CGAL/Barycentric_coordinates_3/Wachspress_coordinates_3.h>
+#include <CGAL/Complex_2_in_triangulation_3.h>
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/IO/OBJ_reader.h>
+#include <CGAL/IO/facets_in_complex_2_to_triangle_mesh.h>
+#include <CGAL/Implicit_surface_3.h>
+#include <CGAL/Polygon_mesh_processing/triangulate_faces.h>
+#include <CGAL/Surface_mesh.h>
+#include <CGAL/Surface_mesh_default_triangulation_3.h>
+#include <CGAL/make_surface_mesh.h>
 
 using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
-
-// default triangulation for Surface_mesher
 using Tr = CGAL::Surface_mesh_default_triangulation_3;
-
 using C2t3 = CGAL::Complex_2_in_triangulation_3<Tr>;
-using Sphere_3 = Kernel::Sphere_3;
 using Point_3 = Kernel::Point_3;
 using FT = Kernel::FT;
-
 typedef FT(*Function)(Point_3);
 using Surface_3 = CGAL::Implicit_surface_3<Kernel, Function>;
 using Surface_mesh = CGAL::Surface_mesh<Point_3>;
 namespace PMP = CGAL::Polygon_mesh_processing;
 
-FT sphere_function(Point_3 p) {
-    const FT x2 = p.x() * p.x(), y2 = p.y() * p.y(), z2 = p.z() * p.z();
-    return x2 + y2 + z2 - 1;
-}
-////////////// CGAL TEST ///////////////
+////////////// CGAL ///////////////
 
 
 glm::vec2 last_mouse_pos = glm::vec2(0, 0);
@@ -59,7 +51,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 static void cursor_position_callback(GLFWwindow* window, double pos_x, double pos_y) {
     if (dragging) {
         glm::vec2 current_mouse_pos = glm::vec2(pos_x, pos_y);
-        
+
         glm::vec2 mouse_delta = last_mouse_pos - current_mouse_pos;
         glm::vec2 delta_angle = glm::vec2(2 * glm::pi<float>() / m_width, glm::pi<float>() / m_height);
 
@@ -74,8 +66,7 @@ static void cursor_position_callback(GLFWwindow* window, double pos_x, double po
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
     ImGuiIO& io = ImGui::GetIO();
     // (2) ONLY forward mouse data to your underlying app/game.
-    if (!io.WantCaptureMouse)
-    {
+    if (!io.WantCaptureMouse) {
         if (button == GLFW_MOUSE_BUTTON_LEFT) {
             if (action == GLFW_PRESS) {
                 double x, y;
@@ -90,80 +81,9 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
     }
 }
 
-void deformIt() {
-    ////////////// CGAL TEST ///////////////
-    Tr tr;
-    C2t3 c2t3(tr);
-
-
-    // remplace ca par ton mesh, idk how cherche
-    Surface_3 surface(sphere_function, Sphere_3(CGAL::ORIGIN, 2.));
-    CGAL::Surface_mesh_default_criteria_3<Tr> criteria(30., 0.1, 0.1);
-    CGAL::make_surface_mesh(c2t3, surface, criteria, CGAL::Non_manifold_tag());
-
-    Surface_mesh sm;
-    Surface_mesh deformed;
-    CGAL::facets_in_complex_2_to_triangle_mesh(c2t3, sm);
-    deformed = sm;
-
-    Surface_mesh quad_cage;
-
-    // afficher les points de controles, pouvoir les changer avec imgui
-    const Point_3 p0(2, -2, -2), p0_new(5, -5, -5);
-    const Point_3 p1(2, 2, -2), p1_new(3, 3, -3);
-    const Point_3 p2(-2, 2, -2), p2_new(-2, 2, -2);
-    const Point_3 p3(-2, -2, -2), p3_new(-3, -3, -3);
-
-    const Point_3 p4(-2, -2, 2), p4_new(-3, -3, 3);
-    const Point_3 p5(2, -2, 2), p5_new(4, -4, 4);
-    const Point_3 p6(2, 2, 2), p6_new(2, 2, 3);
-    const Point_3 p7(-2, 2, 2), p7_new(-3, 3, 3);
-
-    CGAL::make_hexahedron(p0, p1, p2, p3, p4, p5, p6, p7, quad_cage);
-    PMP::triangulate_faces(faces(quad_cage), quad_cage);
-
-    // tu peux faire ca : mean value
-    CGAL::Barycentric_coordinates::Mean_value_coordinates_3<Surface_mesh, Kernel> mv(quad_cage);
-    // ou ca wachspress
-    CGAL::Barycentric_coordinates::Wachspress_coordinates_3<Surface_mesh, Kernel> mv2(quad_cage);
-
-    auto vertex_to_point_map = get_property_map(CGAL::vertex_point, deformed);
-
-    std::vector<FT> coords;
-    std::vector<Point_3> target_cube{ p0_new, p1_new, p2_new, p3_new,
-                                     p4_new, p5_new, p6_new, p7_new };
-
-    for (auto& v : vertices(deformed)) {
-
-        const Point_3 vertex_val = get(vertex_to_point_map, v);
-        coords.clear();
-        mv(vertex_val, std::back_inserter(coords));
-
-        FT x = FT(0), y = FT(0), z = FT(0);
-        for (std::size_t i = 0; i < 8; i++) {
-
-            x += target_cube[i].x() * coords[i];
-            y += target_cube[i].y() * coords[i];
-            z += target_cube[i].z() * coords[i];
-        }
-
-        put(vertex_to_point_map, v, Point_3(x, y, z));
-    }
-
-    std::cout << "cgal works" << std::endl;
-    std::ofstream out_original("sphere.off");
-    out_original << sm << std::endl;
-
-    std::ofstream out_deformed("deformed_sphere.off");
-    out_deformed << deformed << std::endl;
-    ////////////// CGAL TEST ///////////////
-}
-
 int main() {
-    deformIt();
-
     const std::string m_title = "Coord Bary Gen";
-    std::string file{"data/models/cube.obj"};
+    std::string file{ "data/models/suzzy.obj" };
 
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -181,6 +101,12 @@ int main() {
     glfwMakeContextCurrent(m_window);
     gladLoadGL();
 
+    printf("***** GPU INFO *****");
+    printf("Graphic card vendor: %s\n", glGetString(GL_VENDOR));
+    printf("Renderer: %s\n", glGetString(GL_RENDERER));
+    printf("GL version: %s\n", glGetString(GL_VERSION));
+    printf("GLSL version: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+
     glfwSetCursorPosCallback(m_window, cursor_position_callback);
     glfwSetMouseButtonCallback(m_window, mouse_button_callback);
     glfwSetScrollCallback(m_window, scroll_callback);
@@ -193,29 +119,85 @@ int main() {
     ImGui_ImplGlfw_InitForOpenGL(m_window, true);
     ImGui_ImplOpenGL3_Init("#version 150");
 
-    Mesh test_cube(file);
-    Shader test_shader("data/shaders/base.vert", "data/shaders/base.frag");
+    Shader lit_shader("data/shaders/base.vert", "data/shaders/base.frag");
 
-    camera.m_aspect_ratio = (float)m_width / (float)m_height ;
+    Shader unlit_shader("data/shaders/unlit.vert", "data/shaders/unlit.frag");
+
+    camera.m_aspect_ratio = (float)m_width / (float)m_height;
+
+    Mesh model_to_deform(file);
+    model_to_deform.m_scale = glm::vec3(0.01, 0.01, 0.01);
+
+
+    Point_3 p0(2, -2, -2), p0_new(2, -2, -2);
+    Point_3 p1(2, 2, -2), p1_new(2, 2, -2);
+    Point_3 p2(-2, 2, -2), p2_new(-2, 2, -2);
+    Point_3 p3(-2, -2, -2), p3_new(-2, -2, -2);
+    Point_3 p4(-2, -2, 2), p4_new(-2, -2, 2);
+    Point_3 p5(2, -2, 2), p5_new(2, -2, 2);
+    Point_3 p6(2, 2, 2), p6_new(2, 2, 2);
+    Point_3 p7(-2, 2, 2), p7_new(-2, 2, 2);
+
+    glm::vec3 p0_glm = glm::vec3(2, -2, -2);
+    glm::vec3 p1_glm = glm::vec3(2, 2, -2);
+    glm::vec3 p2_glm = glm::vec3(-2, 2, -2);
+    glm::vec3 p3_glm = glm::vec3(-2, -2, -2);
+    glm::vec3 p4_glm = glm::vec3(-2, -2, 2);
+    glm::vec3 p5_glm = glm::vec3(2, -2, 2);
+    glm::vec3 p6_glm = glm::vec3(2, 2, 2);
+    glm::vec3 p7_glm = glm::vec3(-2, 2, 2);
+
+    std::vector<Vertex> cage_vertices = {
+        { p0_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
+        { p1_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
+        { p2_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
+        { p3_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
+        { p4_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
+        { p5_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
+        { p6_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
+        { p7_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)}
+    };
+
+    std::vector<unsigned int> cage_indices = {
+        0, 1, 2, 0, 2, 3,
+        4, 5, 6, 4, 6, 7,
+        2, 6, 7, 2, 7, 3,
+        0, 4, 5, 0, 5, 1,
+        1, 5, 6, 1, 6, 2,
+        3, 4, 7
+    };
+    Mesh cage(cage_vertices, cage_indices);
+    cage.m_wireframe = true;
+
+    Surface_mesh quad_cage;
+    CGAL::make_hexahedron(p0, p1, p2, p3, p4, p5, p6, p7, quad_cage);
+    PMP::triangulate_faces(faces(quad_cage), quad_cage);
+    CGAL::Barycentric_coordinates::Mean_value_coordinates_3<Surface_mesh, Kernel> mv(quad_cage);
+    auto vertex_to_point_map = get_property_map(CGAL::vertex_point, model_to_deform.m_surface_mesh);
+    std::vector<FT> coords;
+    std::vector<Point_3> target_cube{ p0_new, p1_new, p2_new, p3_new,
+                                      p4_new, p5_new, p6_new, p7_new };
+
+    for (auto& v : vertices(model_to_deform.m_surface_mesh)) {
+
+        const Point_3 vertex_val = get(vertex_to_point_map, v);
+        coords.clear();
+        mv(vertex_val, std::back_inserter(coords));
+
+        FT x = FT(0), y = FT(0), z = FT(0);
+        for (std::size_t i = 0; i < 8; i++) {
+
+            x += target_cube[i].x() * coords[i];
+            y += target_cube[i].y() * coords[i];
+            z += target_cube[i].z() * coords[i];
+        }
+
+        put(vertex_to_point_map, v, Point_3(x, y, z));
+    }
 
     while (glfwWindowShouldClose(m_window) == false) {
         if (glfwGetKey(m_window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
             glfwSetWindowShouldClose(m_window, true);
-        }
-
-        if (glfwGetKey(m_window, GLFW_KEY_P) == GLFW_PRESS) {
-            glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
-            glfwPollEvents();
-        }
-
-        if (glfwGetKey(m_window, GLFW_KEY_L) == GLFW_PRESS) {
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-            glfwPollEvents();
-        }
-
-        if (glfwGetKey(m_window, GLFW_KEY_F) == GLFW_PRESS) {
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-            glfwPollEvents();
         }
 
         ImGui_ImplOpenGL3_NewFrame();
@@ -225,24 +207,89 @@ int main() {
         ImGui::Text("Currently Opened Model:");
         ImGui::Text(file.c_str());
 
+        bool cage_change = ImGui::SliderFloat3("p0", (float*)&p0_glm, -5.0f, 5.0f);
+        cage_change |= ImGui::SliderFloat3("p1", (float*)&p1_glm, -5.0f, 5.0f);
+        cage_change |= ImGui::SliderFloat3("p2", (float*)&p2_glm, -5.0f, 5.0f);
+        cage_change |= ImGui::SliderFloat3("p3", (float*)&p3_glm, -5.0f, 5.0f);
+        cage_change |= ImGui::SliderFloat3("p4", (float*)&p4_glm, -5.0f, 5.0f);
+        cage_change |= ImGui::SliderFloat3("p5", (float*)&p5_glm, -5.0f, 5.0f);
+        cage_change |= ImGui::SliderFloat3("p6", (float*)&p6_glm, -5.0f, 5.0f);
+        cage_change |= ImGui::SliderFloat3("p7", (float*)&p7_glm, -5.0f, 5.0f);
+        if (cage_change) {
+            // update cage viualization
+            cage.UpdateVertexBuffer({
+                { p0_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
+                { p1_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
+                { p2_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
+                { p3_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
+                { p4_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
+                { p5_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
+                { p6_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
+                { p7_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)}
+                });
+
+            // update CGAL cage
+            p0_new = Point_3(p0_glm.x, p0_glm.y, p0_glm.z);
+            p1_new = Point_3(p1_glm.x, p1_glm.y, p1_glm.z);
+            p2_new = Point_3(p2_glm.x, p2_glm.y, p2_glm.z);
+            p3_new = Point_3(p3_glm.x, p3_glm.y, p3_glm.z);
+            p4_new = Point_3(p4_glm.x, p4_glm.y, p4_glm.z);
+            p5_new = Point_3(p5_glm.x, p5_glm.y, p5_glm.z);
+            p6_new = Point_3(p6_glm.x, p6_glm.y, p6_glm.z);
+            p7_new = Point_3(p7_glm.x, p7_glm.y, p7_glm.z);
+            target_cube = { p0_new, p1_new, p2_new, p3_new,
+                            p4_new, p5_new, p6_new, p7_new
+            };
+
+            model_to_deform.ResetSurfaceMesh();
+            Surface_mesh quad_cage;
+            CGAL::make_hexahedron(p0, p1, p2, p3, p4, p5, p6, p7, quad_cage);
+            PMP::triangulate_faces(faces(quad_cage), quad_cage);
+            CGAL::Barycentric_coordinates::Mean_value_coordinates_3<Surface_mesh, Kernel> mv(quad_cage);
+            auto vertex_to_point_map = get_property_map(CGAL::vertex_point, model_to_deform.m_surface_mesh);
+            std::vector<FT> coords;
+            std::vector<Point_3> target_cube{ p0_new, p1_new, p2_new, p3_new,
+                                              p4_new, p5_new, p6_new, p7_new };
+
+            for (auto& v : vertices(model_to_deform.m_surface_mesh)) {
+
+                const Point_3 vertex_val = get(vertex_to_point_map, v);
+                coords.clear();
+                mv(vertex_val, std::back_inserter(coords));
+
+                FT x = FT(0), y = FT(0), z = FT(0);
+                for (std::size_t i = 0; i < 8; i++) {
+
+                    x += target_cube[i].x() * coords[i];
+                    y += target_cube[i].y() * coords[i];
+                    z += target_cube[i].z() * coords[i];
+                }
+
+                put(vertex_to_point_map, v, Point_3(x, y, z));
+            }
+
+            model_to_deform.UpdateMeshToCGAL();
+        }
+
+        /*
         // open Dialog Simple
         if (ImGui::Button("Open Model"))
-            ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".obj,.off,.fbx", ".");
+               ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".obj,.off,.fbx", ".");
 
         // display
         if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey"))
         {
-            // action if OK
-            if (ImGuiFileDialog::Instance()->IsOk())
-            {
-                std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
-                file = filePathName;
-            }
+               // action if OK
+               if (ImGuiFileDialog::Instance()->IsOk())
+               {
+                      std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
+                      file = filePathName;
+               }
 
-            // close
-            ImGuiFileDialog::Instance()->Close();
+               // close
+               ImGuiFileDialog::Instance()->Close();
         }
-        Mesh test_cube(file);
+        */
 
         ImGui::End();
 
@@ -255,15 +302,17 @@ int main() {
 
         camera.Update();
 
-        test_cube.Render(&camera, &test_shader);
+        model_to_deform.Render(&camera, &lit_shader);
+
+        cage.Render(&camera, &unlit_shader);
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwSwapBuffers(m_window);
         glfwPollEvents();
     }
-    
+
     glfwTerminate();
-    
+
     return 0;
 }
