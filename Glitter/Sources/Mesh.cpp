@@ -243,6 +243,9 @@ void Mesh::UpdateMeshToCGAL() {
     for (const auto& face : m_surface_mesh.faces()) {
         for (const auto& v : m_surface_mesh.vertices_around_face(m_surface_mesh.halfedge(face))) {
             auto point = m_surface_mesh.point(v);
+            if (counter >= m_vertices.size()) {
+                break;
+            }
             new_vertices.push_back({
                 {point.x(), point.y(), point.z()},
                 m_vertices[counter].m_normal,

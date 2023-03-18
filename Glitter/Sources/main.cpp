@@ -4,6 +4,7 @@
 #include "Camera.h"
 #include "imgui_stdlib.h"
 
+#include <nfd.h>
 #include <ImGuiFileDialog.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -84,344 +85,388 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 }
 
 int main() {
-    const std::string m_title = "Coord Bary Gen";
-    std::string file{ "data/models/suzzy.obj" };
-    const char* methods[] = { "Mean_value", "Wachspress", "Discrete_harmonic", "tetrahedron" };
-    static int methods_current = 0;
+    NFD_Init();
 
-    glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
-    auto m_window = glfwCreateWindow(m_width, m_height, m_title.c_str(), nullptr, nullptr);
+    nfdchar_t* outPath;
+    nfdfilteritem_t filterItem[2] = { { "Wavefront", "obj" }, { "FBX", "fbx" } };
+    nfdresult_t result = NFD_OpenDialog(&outPath, filterItem, 2, NULL);
+    if (result == NFD_OKAY)
+    {
+        puts("Opening File!");
+        puts(outPath);
 
-    if (m_window == nullptr) {
-        fprintf(stderr, "Failed to Create OpenGL Context");
-        return EXIT_FAILURE;
-    }
+        const std::string m_title = "Coord Bary Gen";
+        std::string file{ outPath };
+        const char* methods[] = { "Mean_value", "Wachspress", "Discrete_harmonic", "tetrahedron" };
+        static int methods_current = 0;
 
-    glfwMakeContextCurrent(m_window);
-    gladLoadGL();
+        glfwInit();
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+        glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+        auto m_window = glfwCreateWindow(m_width, m_height, m_title.c_str(), nullptr, nullptr);
 
-    printf("***** GPU INFO *****\n");
-    printf("Graphic card vendor: %s\n", glGetString(GL_VENDOR));
-    printf("Renderer: %s\n", glGetString(GL_RENDERER));
-    printf("GL version: %s\n", glGetString(GL_VERSION));
-    printf("GLSL version: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
-
-    glfwSetCursorPosCallback(m_window, cursor_position_callback);
-    glfwSetMouseButtonCallback(m_window, mouse_button_callback);
-    glfwSetScrollCallback(m_window, scroll_callback);
-
-
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    ImGui::StyleColorsDark();
-    ImGui_ImplGlfw_InitForOpenGL(m_window, true);
-    ImGui_ImplOpenGL3_Init("#version 150");
-
-    Shader lit_shader("data/shaders/base.vert", "data/shaders/base.frag");
-
-    Shader unlit_shader("data/shaders/unlit.vert", "data/shaders/unlit.frag");
-
-    camera.m_aspect_ratio = (float)m_width / (float)m_height;
-
-    Mesh model_to_deform(file);
-    model_to_deform.m_scale = glm::vec3(0.01, 0.01, 0.01);
-
-    Point_3 p0(2, -2, -2), p0_new(2, -2, -2);
-    Point_3 p1(2, 2, -2), p1_new(2, 2, -2);
-    Point_3 p2(-2, 2, -2), p2_new(-2, 2, -2);
-    Point_3 p3(-2, -2, -2), p3_new(-2, -2, -2);
-    Point_3 p4(-2, -2, 2), p4_new(-2, -2, 2);
-    Point_3 p5(2, -2, 2), p5_new(2, -2, 2);
-    Point_3 p6(2, 2, 2), p6_new(2, 2, 2);
-    Point_3 p7(-2, 2, 2), p7_new(-2, 2, 2);
-
-    glm::vec3 p0_glm = glm::vec3(2, -2, -2);
-    glm::vec3 p1_glm = glm::vec3(2, 2, -2);
-    glm::vec3 p2_glm = glm::vec3(-2, 2, -2);
-    glm::vec3 p3_glm = glm::vec3(-2, -2, -2);
-    glm::vec3 p4_glm = glm::vec3(-2, -2, 2);
-    glm::vec3 p5_glm = glm::vec3(2, -2, 2);
-    glm::vec3 p6_glm = glm::vec3(2, 2, 2);
-    glm::vec3 p7_glm = glm::vec3(-2, 2, 2);
-
-    std::vector<Vertex> cage_vertices = {
-        { p0_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
-        { p1_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
-        { p2_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
-        { p3_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
-        { p4_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
-        { p5_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
-        { p6_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
-        { p7_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)}
-    };
-
-    std::vector<unsigned int> cage_indices = {
-        0, 1, 2, 0, 2, 3,
-        4, 5, 6, 4, 6, 7,
-        2, 6, 7, 2, 7, 3,
-        0, 4, 5, 0, 5, 1,
-        1, 5, 6, 1, 6, 2,
-        3, 4, 7
-    };
-    Mesh cage(cage_vertices, cage_indices);
-    cage.m_wireframe = true;
-
-    Surface_mesh quad_cage;
-    CGAL::make_hexahedron(p0, p1, p2, p3, p4, p5, p6, p7, quad_cage);
-    PMP::triangulate_faces(faces(quad_cage), quad_cage);
-    CGAL::Barycentric_coordinates::Mean_value_coordinates_3<Surface_mesh, Kernel> mv(quad_cage);
-
-    auto vertex_to_point_map = get_property_map(CGAL::vertex_point, model_to_deform.m_surface_mesh);
-    std::vector<FT> coords;
-    std::vector<Point_3> target_cube{ p0_new, p1_new, p2_new, p3_new,
-                                      p4_new, p5_new, p6_new, p7_new };
-
-    for (auto& v : vertices(model_to_deform.m_surface_mesh)) {
-
-        const Point_3 vertex_val = get(vertex_to_point_map, v);
-        coords.clear();
-        mv(vertex_val, std::back_inserter(coords));
-
-        FT x = FT(0), y = FT(0), z = FT(0);
-        for (std::size_t i = 0; i < 8; i++) {
-
-            x += target_cube[i].x() * coords[i];
-            y += target_cube[i].y() * coords[i];
-            z += target_cube[i].z() * coords[i];
+        if (m_window == nullptr) {
+            fprintf(stderr, "Failed to Create OpenGL Context");
+            return EXIT_FAILURE;
         }
 
-        put(vertex_to_point_map, v, Point_3(x, y, z));
-    }
+        glfwMakeContextCurrent(m_window);
+        gladLoadGL();
 
-    while (glfwWindowShouldClose(m_window) == false) {
-        if (glfwGetKey(m_window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-            glfwSetWindowShouldClose(m_window, true);
+        printf("***** GPU INFO *****\n");
+        printf("Graphic card vendor: %s\n", glGetString(GL_VENDOR));
+        printf("Renderer: %s\n", glGetString(GL_RENDERER));
+        printf("GL version: %s\n", glGetString(GL_VERSION));
+        printf("GLSL version: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+
+        glfwSetCursorPosCallback(m_window, cursor_position_callback);
+        glfwSetMouseButtonCallback(m_window, mouse_button_callback);
+        glfwSetScrollCallback(m_window, scroll_callback);
+
+
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO(); (void)io;
+        ImGui::StyleColorsDark();
+        ImGui_ImplGlfw_InitForOpenGL(m_window, true);
+        ImGui_ImplOpenGL3_Init("#version 150");
+
+        Shader lit_shader("data/shaders/base.vert", "data/shaders/base.frag");
+
+        Shader unlit_shader("data/shaders/unlit.vert", "data/shaders/unlit.frag");
+
+        camera.m_aspect_ratio = (float)m_width / (float)m_height;
+
+        Mesh model_to_deform(file);
+        model_to_deform.m_scale = glm::vec3(0.01, 0.01, 0.01);
+
+        Point_3 p0(2, -2, -2), p0_new(2, -2, -2);
+        Point_3 p1(2, 2, -2), p1_new(2, 2, -2);
+        Point_3 p2(-2, 2, -2), p2_new(-2, 2, -2);
+        Point_3 p3(-2, -2, -2), p3_new(-2, -2, -2);
+        Point_3 p4(-2, -2, 2), p4_new(-2, -2, 2);
+        Point_3 p5(2, -2, 2), p5_new(2, -2, 2);
+        Point_3 p6(2, 2, 2), p6_new(2, 2, 2);
+        Point_3 p7(-2, 2, 2), p7_new(-2, 2, 2);
+
+        glm::vec3 p0_glm = glm::vec3(2, -2, -2);
+        glm::vec3 p1_glm = glm::vec3(2, 2, -2);
+        glm::vec3 p2_glm = glm::vec3(-2, 2, -2);
+        glm::vec3 p3_glm = glm::vec3(-2, -2, -2);
+        glm::vec3 p4_glm = glm::vec3(-2, -2, 2);
+        glm::vec3 p5_glm = glm::vec3(2, -2, 2);
+        glm::vec3 p6_glm = glm::vec3(2, 2, 2);
+        glm::vec3 p7_glm = glm::vec3(-2, 2, 2);
+
+        std::vector<Vertex> cage_vertices = {
+            { p0_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
+            { p1_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
+            { p2_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
+            { p3_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
+            { p4_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
+            { p5_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
+            { p6_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)},
+            { p7_glm, glm::vec3(0, 0, 0), glm::vec2(0, 0)}
+        };
+
+        std::vector<unsigned int> cage_indices = {
+            0, 1, 2, 0, 2, 3,
+            4, 5, 6, 4, 6, 7,
+            2, 6, 7, 2, 7, 3,
+            0, 4, 5, 0, 5, 1,
+            1, 5, 6, 1, 6, 2,
+            3, 4, 7
+        };
+        Mesh cage(cage_vertices, cage_indices);
+        cage.m_wireframe = true;
+
+        Surface_mesh quad_cage;
+        CGAL::make_hexahedron(p0, p1, p2, p3, p4, p5, p6, p7, quad_cage);
+        PMP::triangulate_faces(faces(quad_cage), quad_cage);
+        CGAL::Barycentric_coordinates::Mean_value_coordinates_3<Surface_mesh, Kernel> mv(quad_cage);
+
+        auto vertex_to_point_map = get_property_map(CGAL::vertex_point, model_to_deform.m_surface_mesh);
+        std::vector<FT> coords;
+        std::vector<Point_3> target_cube{ p0_new, p1_new, p2_new, p3_new,
+                                          p4_new, p5_new, p6_new, p7_new };
+
+        for (auto& v : vertices(model_to_deform.m_surface_mesh)) {
+
+            const Point_3 vertex_val = get(vertex_to_point_map, v);
+            coords.clear();
+            mv(vertex_val, std::back_inserter(coords));
+
+            FT x = FT(0), y = FT(0), z = FT(0);
+            for (std::size_t i = 0; i < 8; i++) {
+
+                x += target_cube[i].x() * coords[i];
+                y += target_cube[i].y() * coords[i];
+                z += target_cube[i].z() * coords[i];
+            }
+
+            put(vertex_to_point_map, v, Point_3(x, y, z));
         }
 
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-        ImGui::Begin("Menu");
-        ImGui::Text("Currently Opened Model:");
-        ImGui::Text(file.c_str());
-        ImGui::Text("Currently Used Method:");
-        bool cage_change = false;
-        if (ImGui::ListBox("(single select)", &methods_current, methods, IM_ARRAYSIZE(methods), 4)) {
-            cage_change = true;
-        }
+        while (glfwWindowShouldClose(m_window) == false) {
+            if (glfwGetKey(m_window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+                glfwSetWindowShouldClose(m_window, true);
+            }
 
-        // open Dialog Simple
-        if (ImGui::Button("Open Model"))
-            ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".obj,.off,.fbx", ".");
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
+            ImGui::Begin("Menu");
+            ImGui::Text("Currently Opened Model:");
+            ImGui::Text(file.c_str());
+            // open Dialog Simple
+            if (ImGui::Button("Open Model"))
+                ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".obj,.off,.fbx", ".");
 
-        // display
-        if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey"))
-        {
-            // action if OK
-            if (ImGuiFileDialog::Instance()->IsOk())
+            // display
+            if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey"))
             {
-                std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
-                file = filePathName;
+                // action if OK
+                if (ImGuiFileDialog::Instance()->IsOk())
+                {
+                    std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
+                    file = filePathName;
 
-                model_to_deform = Mesh::Mesh(file);
+                    model_to_deform.ReloadMesh(file);
+                    model_to_deform.ResetSurfaceMesh();
+                    vertex_to_point_map = get_property_map(CGAL::vertex_point, model_to_deform.m_surface_mesh);
+                    coords.clear();
+                    target_cube = { p0_new, p1_new, p2_new, p3_new,
+                                    p4_new, p5_new, p6_new, p7_new };
+
+                    for (auto& v : vertices(model_to_deform.m_surface_mesh)) {
+
+                        const Point_3 vertex_val = get(vertex_to_point_map, v);
+                        coords.clear();
+                        mv(vertex_val, std::back_inserter(coords));
+
+                        FT x = FT(0), y = FT(0), z = FT(0);
+                        for (std::size_t i = 0; i < 8; i++) {
+
+                            x += target_cube[i].x() * coords[i];
+                            y += target_cube[i].y() * coords[i];
+                            z += target_cube[i].z() * coords[i];
+                        }
+
+                        put(vertex_to_point_map, v, Point_3(x, y, z));
+                    }
+
+                    /* CGAL::make_hexahedron(p0, p1, p2, p3, p4, p5, p6, p7, quad_cage);
+                     PMP::triangulate_faces(faces(quad_cage), quad_cage);
+                     CGAL::Barycentric_coordinates::Mean_value_coordinates_3<Surface_mesh, Kernel> mv(quad_cage);
+                     auto vertex_to_point_map = get_property_map(CGAL::vertex_point, model_to_deform.m_surface_mesh);
+                     std::vector<FT> coords;
+                     std::vector<Point_3> target_cube{ p0_new, p1_new, p2_new, p3_new,
+                                                       p4_new, p5_new, p6_new, p7_new };
+
+                     for (auto& v : vertices(model_to_deform.m_surface_mesh)) {
+
+                         const Point_3 vertex_val = get(vertex_to_point_map, v);
+                         coords.clear();
+                         mv(vertex_val, std::back_inserter(coords));
+
+                         FT x = FT(0), y = FT(0), z = FT(0);
+                         for (std::size_t i = 0; i < 8; i++) {
+
+                             x += target_cube[i].x() * coords[i];
+                             y += target_cube[i].y() * coords[i];
+                             z += target_cube[i].z() * coords[i];
+                         }
+
+                         put(vertex_to_point_map, v, Point_3(x, y, z));
+                     };*/
+                }
+
+                // close
+                ImGuiFileDialog::Instance()->Close();
+            }
+            ImGui::Text("Currently Used Method:");
+            bool cage_change = false;
+            if (ImGui::ListBox("(single select)", &methods_current, methods, IM_ARRAYSIZE(methods), 4)) {
+                cage_change = true;
+            }
+
+
+
+            cage_change |= ImGui::SliderFloat3("p0", (float*)&p0_glm, -5.0f, 5.0f);
+            cage_change |= ImGui::SliderFloat3("p1", (float*)&p1_glm, -5.0f, 5.0f);
+            cage_change |= ImGui::SliderFloat3("p2", (float*)&p2_glm, -5.0f, 5.0f);
+            cage_change |= ImGui::SliderFloat3("p3", (float*)&p3_glm, -5.0f, 5.0f);
+            cage_change |= ImGui::SliderFloat3("p4", (float*)&p4_glm, -5.0f, 5.0f);
+            cage_change |= ImGui::SliderFloat3("p5", (float*)&p5_glm, -5.0f, 5.0f);
+            cage_change |= ImGui::SliderFloat3("p6", (float*)&p6_glm, -5.0f, 5.0f);
+            cage_change |= ImGui::SliderFloat3("p7", (float*)&p7_glm, -5.0f, 5.0f);
+            if (cage_change) {
+                // update cage viualization
+                cage.UpdateVertexBuffer({
+                    { p0_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
+                    { p1_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
+                    { p2_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
+                    { p3_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
+                    { p4_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
+                    { p5_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
+                    { p6_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
+                    { p7_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)}
+                    });
+
+                // update CGAL cage
+                p0_new = Point_3(p0_glm.x, p0_glm.y, p0_glm.z);
+                p1_new = Point_3(p1_glm.x, p1_glm.y, p1_glm.z);
+                p2_new = Point_3(p2_glm.x, p2_glm.y, p2_glm.z);
+                p3_new = Point_3(p3_glm.x, p3_glm.y, p3_glm.z);
+                p4_new = Point_3(p4_glm.x, p4_glm.y, p4_glm.z);
+                p5_new = Point_3(p5_glm.x, p5_glm.y, p5_glm.z);
+                p6_new = Point_3(p6_glm.x, p6_glm.y, p6_glm.z);
+                p7_new = Point_3(p7_glm.x, p7_glm.y, p7_glm.z);
+                target_cube = { p0_new, p1_new, p2_new, p3_new,
+                                p4_new, p5_new, p6_new, p7_new
+                };
+
                 model_to_deform.ResetSurfaceMesh();
+                Surface_mesh quad_cage;
+                CGAL::make_hexahedron(p0, p1, p2, p3, p4, p5, p6, p7, quad_cage);
+                PMP::triangulate_faces(faces(quad_cage), quad_cage);
+                if (methods_current == 0) {
+                    CGAL::Barycentric_coordinates::Mean_value_coordinates_3<Surface_mesh, Kernel> mv(quad_cage);
+                    auto vertex_to_point_map = get_property_map(CGAL::vertex_point, model_to_deform.m_surface_mesh);
+                    std::vector<FT> coords;
+                    std::vector<Point_3> target_cube{ p0_new, p1_new, p2_new, p3_new,
+                                                      p4_new, p5_new, p6_new, p7_new };
 
-                /* CGAL::make_hexahedron(p0, p1, p2, p3, p4, p5, p6, p7, quad_cage);
-                 PMP::triangulate_faces(faces(quad_cage), quad_cage);
-                 CGAL::Barycentric_coordinates::Mean_value_coordinates_3<Surface_mesh, Kernel> mv(quad_cage);
-                 auto vertex_to_point_map = get_property_map(CGAL::vertex_point, model_to_deform.m_surface_mesh);
-                 std::vector<FT> coords;
-                 std::vector<Point_3> target_cube{ p0_new, p1_new, p2_new, p3_new,
-                                                   p4_new, p5_new, p6_new, p7_new };
+                    for (auto& v : vertices(model_to_deform.m_surface_mesh)) {
 
-                 for (auto& v : vertices(model_to_deform.m_surface_mesh)) {
+                        const Point_3 vertex_val = get(vertex_to_point_map, v);
+                        coords.clear();
+                        mv(vertex_val, std::back_inserter(coords));
 
-                     const Point_3 vertex_val = get(vertex_to_point_map, v);
-                     coords.clear();
-                     mv(vertex_val, std::back_inserter(coords));
+                        FT x = FT(0), y = FT(0), z = FT(0);
+                        for (std::size_t i = 0; i < 8; i++) {
 
-                     FT x = FT(0), y = FT(0), z = FT(0);
-                     for (std::size_t i = 0; i < 8; i++) {
+                            x += target_cube[i].x() * coords[i];
+                            y += target_cube[i].y() * coords[i];
+                            z += target_cube[i].z() * coords[i];
+                        }
 
-                         x += target_cube[i].x() * coords[i];
-                         y += target_cube[i].y() * coords[i];
-                         z += target_cube[i].z() * coords[i];
-                     }
+                        put(vertex_to_point_map, v, Point_3(x, y, z));
+                    }
+                }
+                else if (methods_current == 2) {
+                    CGAL::Barycentric_coordinates::Discrete_harmonic_coordinates_3<Surface_mesh, Kernel> mv(quad_cage);
+                    auto vertex_to_point_map = get_property_map(CGAL::vertex_point, model_to_deform.m_surface_mesh);
+                    std::vector<FT> coords;
+                    std::vector<Point_3> target_cube{ p0_new, p1_new, p2_new, p3_new,
+                                                      p4_new, p5_new, p6_new, p7_new };
 
-                     put(vertex_to_point_map, v, Point_3(x, y, z));
-                 };*/
+                    for (auto& v : vertices(model_to_deform.m_surface_mesh)) {
+
+                        const Point_3 vertex_val = get(vertex_to_point_map, v);
+                        coords.clear();
+                        mv(vertex_val, std::back_inserter(coords));
+
+                        FT x = FT(0), y = FT(0), z = FT(0);
+                        for (std::size_t i = 0; i < 8; i++) {
+
+                            x += target_cube[i].x() * coords[i];
+                            y += target_cube[i].y() * coords[i];
+                            z += target_cube[i].z() * coords[i];
+                        }
+
+                        put(vertex_to_point_map, v, Point_3(x, y, z));
+                    }
+                }
+                else if (methods_current == 3) {
+                    // CGAL::Barycentric_coordinates::tetrahedron_coordinates<Surface_mesh, Kernel> mv(quad_cage);
+                    // auto vertex_to_point_map = get_property_map(CGAL::vertex_point, model_to_deform.m_surface_mesh);
+                    // std::vector<FT> coords;
+                    // std::vector<Point_3> target_cube{ p0_new, p1_new, p2_new, p3_new,
+                    //                                   p4_new, p5_new, p6_new, p7_new };
+
+                    // for (auto& v : vertices(model_to_deform.m_surface_mesh)) {
+
+                    //     const Point_3 vertex_val = get(vertex_to_point_map, v);
+                    //     coords.clear();
+                    //     mv(vertex_val, std::back_inserter(coords));
+
+                    //     FT x = FT(0), y = FT(0), z = FT(0);
+                    //     for (std::size_t i = 0; i < 8; i++) {
+
+                    //         x += target_cube[i].x() * coords[i];
+                    //         y += target_cube[i].y() * coords[i];
+                    //         z += target_cube[i].z() * coords[i];
+                    //     }
+
+                    //     put(vertex_to_point_map, v, Point_3(x, y, z));
+                    // }
+                }
+                else if (methods_current == 1) {
+                    CGAL::Barycentric_coordinates::Wachspress_coordinates_3<Surface_mesh, Kernel> mv(quad_cage);
+                    auto vertex_to_point_map = get_property_map(CGAL::vertex_point, model_to_deform.m_surface_mesh);
+                    std::vector<FT> coords;
+                    std::vector<Point_3> target_cube{ p0_new, p1_new, p2_new, p3_new,
+                                                      p4_new, p5_new, p6_new, p7_new };
+
+                    for (auto& v : vertices(model_to_deform.m_surface_mesh)) {
+
+                        const Point_3 vertex_val = get(vertex_to_point_map, v);
+                        coords.clear();
+                        mv(vertex_val, std::back_inserter(coords));
+
+                        FT x = FT(0), y = FT(0), z = FT(0);
+                        for (std::size_t i = 0; i < 8; i++) {
+
+                            x += target_cube[i].x() * coords[i];
+                            y += target_cube[i].y() * coords[i];
+                            z += target_cube[i].z() * coords[i];
+                        }
+
+                        put(vertex_to_point_map, v, Point_3(x, y, z));
+                    }
+                }
+
+                model_to_deform.UpdateMeshToCGAL();
             }
 
-            // close
-            ImGuiFileDialog::Instance()->Close();
+            ImGui::End();
+
+            ImGui::Render();
+
+            glClearColor(0.176f, 0.294f, 0.463f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            glViewport(0, 0, m_width, m_height);
+
+            camera.Update();
+
+            model_to_deform.Render(&camera, &lit_shader);
+
+            cage.Render(&camera, &unlit_shader);
+
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+            glfwSwapBuffers(m_window);
+            glfwPollEvents();
         }
 
-        cage_change |= ImGui::SliderFloat3("p0", (float*)&p0_glm, -5.0f, 5.0f);
-        cage_change |= ImGui::SliderFloat3("p1", (float*)&p1_glm, -5.0f, 5.0f);
-        cage_change |= ImGui::SliderFloat3("p2", (float*)&p2_glm, -5.0f, 5.0f);
-        cage_change |= ImGui::SliderFloat3("p3", (float*)&p3_glm, -5.0f, 5.0f);
-        cage_change |= ImGui::SliderFloat3("p4", (float*)&p4_glm, -5.0f, 5.0f);
-        cage_change |= ImGui::SliderFloat3("p5", (float*)&p5_glm, -5.0f, 5.0f);
-        cage_change |= ImGui::SliderFloat3("p6", (float*)&p6_glm, -5.0f, 5.0f);
-        cage_change |= ImGui::SliderFloat3("p7", (float*)&p7_glm, -5.0f, 5.0f);
-        if (cage_change) {
-            // update cage viualization
-            cage.UpdateVertexBuffer({
-                { p0_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
-                { p1_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
-                { p2_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
-                { p3_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
-                { p4_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
-                { p5_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
-                { p6_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)},
-                { p7_glm,  glm::vec3(0, 0, 0),  glm::vec2(0, 0)}
-                });
-
-            // update CGAL cage
-            p0_new = Point_3(p0_glm.x, p0_glm.y, p0_glm.z);
-            p1_new = Point_3(p1_glm.x, p1_glm.y, p1_glm.z);
-            p2_new = Point_3(p2_glm.x, p2_glm.y, p2_glm.z);
-            p3_new = Point_3(p3_glm.x, p3_glm.y, p3_glm.z);
-            p4_new = Point_3(p4_glm.x, p4_glm.y, p4_glm.z);
-            p5_new = Point_3(p5_glm.x, p5_glm.y, p5_glm.z);
-            p6_new = Point_3(p6_glm.x, p6_glm.y, p6_glm.z);
-            p7_new = Point_3(p7_glm.x, p7_glm.y, p7_glm.z);
-            target_cube = { p0_new, p1_new, p2_new, p3_new,
-                            p4_new, p5_new, p6_new, p7_new
-            };
-
-            model_to_deform.ResetSurfaceMesh();
-            Surface_mesh quad_cage;
-            CGAL::make_hexahedron(p0, p1, p2, p3, p4, p5, p6, p7, quad_cage);
-            PMP::triangulate_faces(faces(quad_cage), quad_cage);
-            if (methods_current == 0) {
-                CGAL::Barycentric_coordinates::Mean_value_coordinates_3<Surface_mesh, Kernel> mv(quad_cage);
-                auto vertex_to_point_map = get_property_map(CGAL::vertex_point, model_to_deform.m_surface_mesh);
-                std::vector<FT> coords;
-                std::vector<Point_3> target_cube{ p0_new, p1_new, p2_new, p3_new,
-                                                  p4_new, p5_new, p6_new, p7_new };
-
-                for (auto& v : vertices(model_to_deform.m_surface_mesh)) {
-
-                    const Point_3 vertex_val = get(vertex_to_point_map, v);
-                    coords.clear();
-                    mv(vertex_val, std::back_inserter(coords));
-
-                    FT x = FT(0), y = FT(0), z = FT(0);
-                    for (std::size_t i = 0; i < 8; i++) {
-
-                        x += target_cube[i].x() * coords[i];
-                        y += target_cube[i].y() * coords[i];
-                        z += target_cube[i].z() * coords[i];
-                    }
-
-                    put(vertex_to_point_map, v, Point_3(x, y, z));
-                }
-            }
-            else if (methods_current == 2) {
-                CGAL::Barycentric_coordinates::Discrete_harmonic_coordinates_3<Surface_mesh, Kernel> mv(quad_cage);
-                auto vertex_to_point_map = get_property_map(CGAL::vertex_point, model_to_deform.m_surface_mesh);
-                std::vector<FT> coords;
-                std::vector<Point_3> target_cube{ p0_new, p1_new, p2_new, p3_new,
-                                                  p4_new, p5_new, p6_new, p7_new };
-
-                for (auto& v : vertices(model_to_deform.m_surface_mesh)) {
-
-                    const Point_3 vertex_val = get(vertex_to_point_map, v);
-                    coords.clear();
-                    mv(vertex_val, std::back_inserter(coords));
-
-                    FT x = FT(0), y = FT(0), z = FT(0);
-                    for (std::size_t i = 0; i < 8; i++) {
-
-                        x += target_cube[i].x() * coords[i];
-                        y += target_cube[i].y() * coords[i];
-                        z += target_cube[i].z() * coords[i];
-                    }
-
-                    put(vertex_to_point_map, v, Point_3(x, y, z));
-                }
-            }
-            else if (methods_current == 3) {
-                // CGAL::Barycentric_coordinates::tetrahedron_coordinates<Surface_mesh, Kernel> mv(quad_cage);
-                // auto vertex_to_point_map = get_property_map(CGAL::vertex_point, model_to_deform.m_surface_mesh);
-                // std::vector<FT> coords;
-                // std::vector<Point_3> target_cube{ p0_new, p1_new, p2_new, p3_new,
-                //                                   p4_new, p5_new, p6_new, p7_new };
-
-                // for (auto& v : vertices(model_to_deform.m_surface_mesh)) {
-
-                //     const Point_3 vertex_val = get(vertex_to_point_map, v);
-                //     coords.clear();
-                //     mv(vertex_val, std::back_inserter(coords));
-
-                //     FT x = FT(0), y = FT(0), z = FT(0);
-                //     for (std::size_t i = 0; i < 8; i++) {
-
-                //         x += target_cube[i].x() * coords[i];
-                //         y += target_cube[i].y() * coords[i];
-                //         z += target_cube[i].z() * coords[i];
-                //     }
-
-                //     put(vertex_to_point_map, v, Point_3(x, y, z));
-                // }
-            }
-            else if (methods_current == 1) {
-                CGAL::Barycentric_coordinates::Wachspress_coordinates_3<Surface_mesh, Kernel> mv(quad_cage);
-                auto vertex_to_point_map = get_property_map(CGAL::vertex_point, model_to_deform.m_surface_mesh);
-                std::vector<FT> coords;
-                std::vector<Point_3> target_cube{ p0_new, p1_new, p2_new, p3_new,
-                                                  p4_new, p5_new, p6_new, p7_new };
-
-                for (auto& v : vertices(model_to_deform.m_surface_mesh)) {
-
-                    const Point_3 vertex_val = get(vertex_to_point_map, v);
-                    coords.clear();
-                    mv(vertex_val, std::back_inserter(coords));
-
-                    FT x = FT(0), y = FT(0), z = FT(0);
-                    for (std::size_t i = 0; i < 8; i++) {
-
-                        x += target_cube[i].x() * coords[i];
-                        y += target_cube[i].y() * coords[i];
-                        z += target_cube[i].z() * coords[i];
-                    }
-
-                    put(vertex_to_point_map, v, Point_3(x, y, z));
-                }
-            }
-
-            model_to_deform.UpdateMeshToCGAL();
-        }
-
-        ImGui::End();
-
-        ImGui::Render();
-
-        glClearColor(0.176f, 0.294f, 0.463f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        glViewport(0, 0, m_width, m_height);
-
-        camera.Update();
-
-        model_to_deform.Render(&camera, &lit_shader);
-
-        cage.Render(&camera, &unlit_shader);
-
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-        glfwSwapBuffers(m_window);
-        glfwPollEvents();
+        glfwTerminate();
+        NFD_FreePath(outPath);
+        return 0;
+    }
+    else if (result == NFD_CANCEL)
+    {
+        puts("User pressed cancel.");
+    }
+    else
+    {
+        printf("Error: %s\n", NFD_GetError());
     }
 
-    glfwTerminate();
-
+    NFD_Quit();
     return 0;
 }
