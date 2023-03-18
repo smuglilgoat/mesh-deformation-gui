@@ -115,6 +115,78 @@ Mesh::Mesh(std::string path) {
     glBindVertexArray(0);
 }
 
+void Mesh::ReloadMesh(std::string path) {
+    Assimp::Importer importer;
+    const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+        std::cout << importer.GetErrorString() << std::endl;
+        return;
+    }
+    auto mesh = scene->mMeshes[0];
+    for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
+        Vertex v;
+        v.m_position = glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);
+        deform_vertices.push_back(Point_3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z));
+        if (mesh->HasNormals()) {
+            v.m_normal = glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);
+        }
+        if (mesh->mTextureCoords[0]) {
+            v.m_texcoord = glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y);
+        }
+        m_vertices.push_back(v);
+    }
+    for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
+        aiFace face = mesh->mFaces[i];
+        std::vector < std::size_t> indices_;
+        for (unsigned int j = 0; j < face.mNumIndices; j++) {
+            m_indices.push_back(face.mIndices[j]);
+            std::size_t index_ = face.mIndices[j];
+            indices_.push_back(index_);
+        }
+        deform_indices.push_back(indices_);
+    }
+
+    for (const Point_3& p : deform_vertices) {
+        m_surface_mesh.add_vertex(p);
+    }
+
+    for (const auto& face : deform_indices) {
+        std::vector<Surface_mesh::Vertex_index> vertex_indices;
+        for (std::size_t i : face) {
+            vertex_indices.push_back(Surface_mesh::Vertex_index(i));
+        }
+        m_surface_mesh.add_face(vertex_indices);
+    }
+
+    glGenVertexArrays(1, &m_vao);
+    glGenBuffers(1, &m_vbo);
+    glGenBuffers(1, &m_ebo);
+
+    glBindVertexArray(m_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+
+    glBufferData(GL_ARRAY_BUFFER, m_vertices.size() * sizeof(Vertex), &m_vertices[0], GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indices.size() * sizeof(unsigned int),
+        &m_indices[0], GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+
+    if (mesh->HasNormals()) {
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, m_normal));
+    }
+    if (mesh->mTextureCoords[0]) {
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, m_texcoord));
+
+    }
+
+    glBindVertexArray(0);
+}
+
 void Mesh::ResetSurfaceMesh() {
     m_surface_mesh.clear();
     for (const Point_3& p : deform_vertices) {

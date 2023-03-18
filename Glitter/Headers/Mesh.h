@@ -56,6 +56,7 @@ struct Mesh {
 
 	Mesh::Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices);
 	Mesh(std::string path);
+	void ReloadMesh(std::string path);
 	void Render(Camera* camera, Shader* shader);
 	void UpdateVertexBuffer(std::vector<Vertex> vertices);
 	void UpdateMeshToCGAL();
