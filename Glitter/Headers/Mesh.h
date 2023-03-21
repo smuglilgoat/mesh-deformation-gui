@@ -59,5 +59,5 @@ struct Mesh {
 	void ReloadMesh(std::string path);
 	void Render(Camera* camera, Shader* shader);
 	void UpdateVertexBuffer(std::vector<Vertex> vertices);
-	void UpdateMeshToCGAL();
+	void UpdateMeshFromCGAL();
 };

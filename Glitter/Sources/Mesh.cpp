@@ -237,7 +237,7 @@ void Mesh::UpdateVertexBuffer(std::vector<Vertex> vertices) {
 }
 
 
-void Mesh::UpdateMeshToCGAL() {
+void Mesh::UpdateMeshFromCGAL() {
     std::vector < Vertex> new_vertices;
     int counter = 0;
     for (const auto& face : m_surface_mesh.faces()) {
