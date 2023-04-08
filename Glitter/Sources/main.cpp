@@ -107,7 +107,7 @@ int main() {
         puts("Opening File!");
         puts(outPath);
 
-        const std::string m_title = "Coord Bary Gen";
+        const std::string m_title = "Projet Tutore - Coordonnees Barycentriques 3D Generalisees";
         std::string file{ outPath };
         const char* methods[] = { "Mean_value", "Wachspress", "Discrete_harmonic"};
         static int methods_current = 0;
